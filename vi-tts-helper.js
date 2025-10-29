@@ -1,4 +1,3 @@
-
 /* vi-tts-helper.js — Force Vietnamese TTS on Web Speech with robust selection */
 (function(){
   const preferredVoiceNames = [
@@ -42,4 +41,4 @@
   }
   window.speakVi=speakVi; window.getVietnameseVoices=()=>viVoices.slice();
   if (typeof window.speak==="function"){ const _s=window.speak; window.speak=(t,o)=>{ try{return speakVi(t,o);}catch(e){return _s(t,o);} }; }
-})();    
+})();
