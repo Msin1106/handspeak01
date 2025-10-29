@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Handspeak — Chẩn đoán voice</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Chẩn đoán voice Tiếng Việt</h1>
+    <p class="lead">Nếu không thấy voice Việt, hãy làm theo hướng dẫn ở dưới để cài gói giọng nói.</p>
+    <div class="card">
+      <div class="row"><button id="refresh" class="primary">Làm mới danh sách voice</button></div>
+      <div id="list" class="log" style="height:220px"></div>
+      <p class="lead">
+        <b>Android:</b> Cài/ cập nhật <i>Speech Services by Google</i>, sau đó tải gói <b>Tiếng Việt</b> trong cài đặt TTS.<br>
+        <b>Windows:</b> Settings → Time &amp; Language → Language &amp; region → Add language <b>Tiếng Việt</b> + <b>Speech</b>.<br>
+        <b>macOS/iOS:</b> Kiểm tra mục Speech/Spoken Content; nếu không có Vietnamese, cân nhắc dùng thiết bị hoặc trình duyệt khác.
+      </p>
+    </div>
+    <p class="footer"><a href="./">← Quay lại trang chính</a></p>
+  </div>
+  <script>
+    const list=document.getElementById('list');
+    function render(){ if(!("speechSynthesis" in window)){ list.textContent="Trình duyệt không hỗ trợ Web Speech Synthesis."; return; }
+      const vs=speechSynthesis.getVoices()||[]; if(!vs.length){ list.textContent="Chưa nhận được voice nào. Hãy bấm lại sau 1–2 giây hoặc cài đặt gói tiếng Việt."; return; }
+      list.textContent = "Tổng cộng "+vs.length+" voice:\n" + vs.map((v,i)=> `${i+1}. ${v.name} — ${v.lang}${v.default?" (default)":""}`).join("\n");
+    }
+    document.getElementById('refresh').onclick=()=> setTimeout(render,50);
+    if (typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=render; } setTimeout(render,100);
+  </script>
+</body>
+</html>

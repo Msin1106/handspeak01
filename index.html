@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Handspeak — Trang web với giọng đọc Tiếng Việt</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="topbar">
+    <div class="container nav">
+      <strong>Handspeak</strong>
+      <span class="badge">Web + TTS tiếng Việt</span>
+      <a href="voice-diagnostics.html">Chẩn đoán voice</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <h1>Handspeak</h1>
+    <p class="lead">Trang mẫu đã cấu hình <b>Web Speech</b> đọc <b>Tiếng Việt (vi-VN)</b>. Kết nối phần nhận dạng tay của bạn và gọi <kbd>speakVi()</kbd> để phát âm.</p>
+
+    <div class="card video-wrap">
+      <div>
+        <video id="cam" playsinline autoplay muted></video>
+      </div>
+      <div class="panel">
+        <div class="row">
+          <button id="startCam" class="primary">Bật camera</button>
+          <button id="stopCam">Tắt camera</button>
+        </div>
+        <div class="voice-line">
+          <label for="voices">Giọng Việt:</label>
+          <select id="voices" title="Chọn giọng Việt (nếu để trống sẽ tự chọn)"></select>
+        </div>
+        <div class="slider"><label>Tốc độ</label><input id="rate" type="range" min="0.6" max="1.4" step="0.05" value="1.0"><span id="rateVal">1.0</span></div>
+        <div class="slider"><label>Độ cao</label><input id="pitch" type="range" min="0.6" max="1.4" step="0.05" value="1.0"><span id="pitchVal">1.0</span></div>
+        <div class="row"><input id="say" type="text" placeholder="Nhập câu cần đọc (tiếng Việt)..." style="flex:1"><button id="speakBtn" class="primary">Đọc</button></div>
+        <small class="help">Gợi ý: nhấn <kbd>Bật camera</kbd> và <kbd>Đọc</kbd> để tạo tương tác người dùng.</small>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <b>Tích hợp:</b>
+      <pre style="white-space:pre-wrap">
+// Khi ghép xong câu từ cử chỉ:
+speakVi(cauTiengViet, { cancelBeforeSpeak: true, rate: currentRate, pitch: currentPitch, voice: selectedVoiceName });
+      </pre>
+    </div>
+
+    <p class="footer">© 2025 Handspeak — Mẫu GitHub Pages (vi-VN).</p>
+  </div>
+
+  <script src="vi-tts-helper.js"></script>
+  <script>
+    const log=(m)=>{ const el=document.getElementById('log'); el.textContent=(new Date().toLocaleTimeString())+" — "+m+"\n"+el.textContent; };
+    const cam=document.getElementById('cam'), startBtn=document.getElementById('startCam'), stopBtn=document.getElementById('stopCam'); let stream=null;
+    startBtn.onclick=async ()=>{ try{ stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false}); cam.srcObject=stream; log("Camera đã bật."); }catch(e){ log("Không bật được camera: "+e); } };
+    stopBtn.onclick=()=>{ if(stream){ for(const t of stream.getTracks()) t.stop(); stream=null; cam.srcObject=null; log("Đã tắt camera."); } };
+    const voiceSel=document.getElementById('voices'), rate=document.getElementById('rate'), pitch=document.getElementById('pitch');
+    const rateVal=document.getElementById('rateVal'), pitchVal=document.getElementById('pitchVal'), say=document.getElementById('say'), speakBtn=document.getElementById('speakBtn');
+    function refillVoices(){
+      const vs=(window.getVietnameseVoices? getVietnameseVoices(): (speechSynthesis.getVoices()||[])).filter(v=>(v.lang||'').toLowerCase().startsWith('vi'));
+      voiceSel.innerHTML="<option value=''>Tự động chọn</option>"; vs.forEach(v=>{ const o=document.createElement('option'); o.value=v.name; o.textContent=v.name+" ("+v.lang+")"; voiceSel.appendChild(o); });
+      log("Tìm thấy "+vs.length+" voice (vi).");
+    }
+    if (typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=refillVoices; } setTimeout(refillVoices,100);
+    rate.oninput=()=> rateVal.textContent=rate.value; pitch.oninput=()=> pitchVal.textContent=pitch.value;
+    speakBtn.onclick=async ()=>{ const text=say.value.trim()||"Xin chào, đây là giọng đọc tiếng Việt."; const opts={cancelBeforeSpeak:true, rate:parseFloat(rate.value), pitch:parseFloat(pitch.value)}; const name=voiceSel.value.trim(); if(name) opts.voice=name; try{ await speakVi(text,opts); log("Đã đọc: "+text);}catch(e){ log("Lỗi đọc: "+e);} };
+  </script>
+</body>
+</html>
