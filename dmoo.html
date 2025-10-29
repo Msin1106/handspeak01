@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <title>HandSpeak (JS, no‑cv2) — Ngôn ngữ hình thể → Tiếng Việt</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- ===== Styles ===== -->
+  <style>
+    :root{
+      --bg:#0f1115; --panel:#151923; --ink:#e6e9ef; --muted:#9aa5b1; --acc:#36d399; --ring:#2c3342;
+    }
+    *{box-sizing:border-box}
+    html, body { margin:0; background:var(--bg); color:var(--ink); font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif }
+    a{color:var(--acc); text-decoration:none}
+    main { display:flex; flex-direction:column; gap:18px; padding:18px; max-width:1200px; margin:0 auto; }
+    header{display:flex; gap:16px; align-items:center; justify-content:space-between}
+    nav{display:flex; flex-wrap:wrap; gap:8px}
+    nav button{background:#1d2330;border:1px solid var(--ring);color:var(--ink);padding:8px 12px;border-radius:8px;cursor:pointer}
+    nav button.active{border-color:var(--acc); box-shadow:0 0 0 1px var(--acc) inset}
+    section.panel{background:var(--panel); border:1px solid var(--ring); border-radius:12px; padding:16px}
+    h2{margin:0 0 6px 0; font-size:20px}
+    .hint{color:var(--muted); font-size:14px}
+    /* Stage (Practice) */
+    #stage { position:relative; width: min(96vw, 960px); aspect-ratio: 16/9; background:#000; border-radius:12px; overflow:hidden; box-shadow:0 0 0 1px var(--ring) inset; margin:10px 0 }
+    #stage video, #stage canvas { position:absolute; inset:0; width:100%; height:100%; }
+    #banner { position:absolute; left:12px; top:12px; padding:8px 12px; background:rgba(0,0,0,.6); border-radius:10px; font-weight:600; backdrop-filter: blur(6px) }
+    #controls { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+    #controls .group{display:flex; align-items:center; gap:8px}
+    #vol-val{ color:var(--muted); min-width:46px; text-align:right }
+    input[type=range]{ width:180px }
+    button, label { background:#1d2330; border:1px solid var(--ring); color:var(--ink); padding:8px 12px; border-radius:8px; cursor:pointer }
+    button:hover{ border-color:#3b4358 }
+    .switch{position:relative;display:inline-block;width:44px;height:24px}
+    .switch input{opacity:0;width:0;height:0}
+    .slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#394050;transition:.2s;border-radius:999px}
+    .slider:before{position:absolute;content:"";height:18px;width:18px;left:3px;top:3px;background:white;transition:.2s;border-radius:50%}
+    .switch input:checked + .slider{background:var(--acc)}
+    .switch input:checked + .slider:before{transform:translateX(20px)}
+    /* Learn cards */
+    .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px}
+    .card{background:#101521;border:1px solid var(--ring); border-radius:10px; padding:12px}
+    .card h4{margin:6px 0 4px 0}
+    .card .badge{display:inline-block; padding:2px 8px; border-radius:999px; background:#1e2637; border:1px solid var(--ring); font-size:12px; margin-right:6px}
+    .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background:#1e2637; border:1px solid #2a3346; padding:2px 6px; border-radius:6px}
+    .two-col{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+    @media (max-width: 900px){ .two-col{grid-template-columns:1fr} }
+    img.round{border-radius:10px; border:1px solid var(--ring); width:100%; height:auto}
+  </style>
+
+  <!-- ===== MediaPipe (Hands) ===== -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.min.js"></script>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1 style="margin:0;font-size:22px">🖐️ HandSpeak – Ngôn ngữ hình thể → Giọng nói</h1>
+      <div class="hint">Demo chạy trên trình duyệt: Camera ➜ Mediapipe ➜ Văn bản ➜ Giọng nói (TTS). <span class="kbd">no‑cv2</span></div>
+    </div>
+    <nav>
+      <button data-tab="intro" class="active">Giới thiệu</button>
+      <button data-tab="learn">Học & Tra cứu</button>
+      <button data-tab="practice">Thực hành</button>
+      <button data-tab="impact">Ý nghĩa</button>
+    </nav>
+  </header>
+
+  <!-- ===== Giới thiệu ===== -->
+  <section class="panel" id="tab-intro">
+    <div class="two-col">
+      <div>
+        <h2>1) Giới thiệu</h2>
+        <p>
+          HandSpeak là bản demo chuyển <b>ngôn ngữ hình thể/ký hiệu tay</b> thành <b>văn bản và giọng nói tiếng Việt</b> theo đúng ý tưởng của dự án gốc:
+          dùng camera nhận bàn tay, phân loại cử chỉ, hiển thị câu và phát âm thanh. :contentReference[oaicite:2]{index=2}
+        </p>
+        <p>
+          Mục tiêu là giúp rút ngắn rào cản giao tiếp, hỗ trợ người khiếm thính/khuyết tật ngôn ngữ tiếp cận cộng đồng tốt hơn bằng công nghệ AI và TTS. :contentReference[oaicite:3]{index=3}
+        </p>
+        <ul>
+          <li>Phát hiện tay thời gian thực bằng <b>MediaPipe Hands</b>.</li>
+          <li>Phân loại 9 cử chỉ phổ biến (5 cũ + 4 bổ sung: <span class="kbd">STOP</span>, <span class="kbd">FIST</span>, <span class="kbd">POINT</span>, <span class="kbd">SHAKA</span>).</li>
+          <li>Đọc tiếng Việt bằng <b>Web Speech API</b> ngay trong trình duyệt.</li>
+        </ul>
+        <div class="hint">*Hạn chế: đây là demo heuristic (chưa phải VSL đầy đủ). Có thể thêm mô hình học máy khi thu thập dữ liệu đủ lớn.*</div>
+      </div>
+      <div>
+        <img class="round" src="assets/bang_chu_cai.png" alt="Bảng chữ cái & số bằng bàn tay (tham khảo)" />
+        <div class="hint" style="margin-top:6px">Bảng chữ cái & số bằng bàn tay (dùng để tham khảo/học nhanh cho người mới).</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Học & Tra cứu ===== -->
+  <section class="panel" id="tab-learn" hidden>
+    <h2>2) Học & Tra cứu</h2>
+    <p>Phần này giúp người bình thường làm quen ký hiệu cơ bản: chữ cái, số, và nhóm cử chỉ giao tiếp nhanh.</p>
+
+    <div class="grid">
+      <div class="card">
+        <h4>2.1 Bảng chữ cái & số</h4>
+        <div class="hint">Xem toàn bộ trong ảnh; tập từng cụm 5–7 ký tự để ghi nhớ tốt hơn.</div>
+        <img class="round" src="assets/bang_chu_cai.png" alt="Bảng chữ cái bằng bàn tay" />
+      </div>
+
+      <div class="card">
+        <h4>2.2 Cử chỉ giao tiếp nhanh</h4>
+        <div style="display:flex; flex-wrap:wrap; gap:8px; margin:6px 0">
+          <span class="badge">👋 Xin chào (WAVE)</span>
+          <span class="badge">✋ Chào bạn / mở lòng bàn tay (OPEN_PALM)</span>
+          <span class="badge">👍 Tốt lắm (THUMBS_UP)</span>
+          <span class="badge">👌 OK (OK)</span>
+          <span class="badge">✌️ Tuyệt vời (VICTORY)</span>
+          <span class="badge">✋ Dừng lại (STOP)</span>
+          <span class="badge">👊 Xin lỗi* (FIST)</span>
+          <span class="badge">👉 Chỉ tay (POINT)</span>
+          <span class="badge">🤙 Kết nối/Chào thân mật (SHAKA)</span>
+        </div>
+        <div class="hint">*Một số ý nghĩa có tính “mẹo nhớ” cho demo (ví dụ nắm tay = “xin lỗi”). Với VSL chuẩn cần thêm ngữ cảnh/động tác kèm theo.</div>
+      </div>
+
+      <div class="card">
+        <h4>2.3 Mẹo luyện tập</h4>
+        <ul>
+          <li>Đưa tay rõ trong vùng camera, nền tương phản.</li>
+          <li>Giữ cử chỉ ổn định 0.5–1 giây để hệ thống nhận chắc hơn.</li>
+          <li>Khi học chữ cái: tập theo nhóm (A–G, H–N, …), đọc to chữ và ý nghĩa.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Thực hành (camera + TTS) ===== -->
+  <section class="panel" id="tab-practice" hidden>
+    <h2>3) Thực hành với camera</h2>
+    <div class="hint">Cho phép trình duyệt truy cập <b>camera laptop</b>. Khi nhận cử chỉ, trang sẽ hiển thị câu và đọc tiếng Việt.</div>
+
+    <div id="stage">
+      <video id="video" class="input_video" playsinline autoplay muted></video>
+      <canvas id="canvas" class="output_canvas"></canvas>
+      <div id="banner">Đang khởi động…</div>
+    </div>
+
+    <div id="controls">
+      <div class="group">
+        <label class="switch">
+          <input type="checkbox" id="toggle-audio" checked />
+          <span class="slider"></span>
+        </label>
+        <span>Bật âm thanh</span>
+      </div>
+      <div class="group">
+        <button id="vol-dec" title="Giảm âm lượng">−</button>
+        <input type="range" id="vol" min="0" max="1" step="0.05" value="1">
+        <button id="vol-inc" title="Tăng âm lượng">+</button>
+        <span id="vol-val">100%</span>
+      </div>
+      <div class="group">
+        <button id="btn-test-voice">Test tiếng nói</button>
+        <button id="btn-reset">Reset vẫy tay</button>
+        <button id="btn-download-log">Tải log CSV</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Ý nghĩa ===== -->
+  <section class="panel" id="tab-impact" hidden>
+    <h2>4) Ý nghĩa & tác động</h2>
+    <p>
+      Ứng dụng gợi mở một lối tiếp cận trợ giúp giao tiếp cho người khiếm thính/khuyết tật ngôn ngữ, góp phần giáo dục hoà nhập và ứng dụng AI trong dạy học,
+      đúng định hướng đề tài: <i>“Chuyển đổi ngôn ngữ hình thể sang ngôn ngữ giọng nói bằng AI”</i>. :contentReference[oaicite:4]{index=4}
+    </p>
+    <ul>
+      <li><b>Giảm rào cản</b> giữa người dùng ký hiệu và cộng đồng nhờ chuyển đổi nhanh sang lời nói. :contentReference[oaicite:5]{index=5}</li>
+      <li><b>Dễ học – dễ phổ biến</b>: giao diện đơn giản, có mục học & thực hành ngay trong trình duyệt. :contentReference[oaicite:6]{index=6}</li>
+      <li><b>Khả thi – chi phí thấp</b>: thư viện mã nguồn mở, chạy trên laptop phổ thông. :contentReference[oaicite:7]{index=7}</li>
+    </ul>
+    <p class="hint">
+      *Lưu ý*: Đây là demo heuristic (chưa phải toàn bộ VSL). Khi có dữ liệu, có thể huấn luyện mô hình (CNN/TF‑Lite) để đạt độ chính xác cao hơn. :contentReference[oaicite:8]{index=8}
+    </p>
+  </section>
+</main>
+
+<!-- ===== Logic (Hands + Heuristic + UI) ===== -->
+<script>
+  // ---------- Tabs ----------
+  const tabs = {intro:'tab-intro', learn:'tab-learn', practice:'tab-practice', impact:'tab-impact'};
+  document.querySelectorAll('nav button').forEach(btn=>{
+    btn.onclick = ()=>{
+      document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active', b===btn));
+      const key = btn.dataset.tab;
+      for(const k in tabs){ document.getElementById(tabs[k]).hidden = (k!==key); }
+    };
+  });
+
+  // ---------- Config / Phrases ----------
+  const PHRASE_MAP = {
+    WAVE: "Xin chào!",
+    OPEN_PALM: "Chào bạn!",
+    STOP: "Dừng lại!",
+    THUMBS_UP: "Tốt lắm!",
+    OK: "OK!",
+    VICTORY: "Tuyệt vời!",
+    FIST: "Xin lỗi!",
+    POINT: "Ở kia!",
+    SHAKA: "Kết nối nhé!"
+  };
+  // Thresholds
+  let OK_RATIO_MAX = 0.45;
+  let V_SEP_MIN = 0.12;
+  let WAVE_HIST = 20, WAVE_AMP_MIN = 0.08, WAVE_SIGN_CHANGES_MIN = 5;
+  let SMOOTHER_K = 5, SMOOTHER_REQUIRED = 3;
+  let COOLDOWN_SEC = 1.5;
+  let STOP_STABLE_AMP = 0.02; // biên độ rất nhỏ => coi như đưa tay "Stop" đứng yên
+
+  // ---------- Practice UI ----------
+  const videoEl = document.getElementById('video');
+  const canvasEl = document.getElementById('canvas');
+  const ctx = canvasEl.getContext('2d');
+  const bannerEl = document.getElementById('banner');
+  const audioToggle = document.getElementById('toggle-audio');
+  const btnReset = document.getElementById('btn-reset');
+  const btnTest = document.getElementById('btn-test-voice');
+  const btnDownload = document.getElementById('btn-download-log');
+  const volSlider = document.getElementById('vol');
+  const volVal = document.getElementById('vol-val');
+  const btnDec = document.getElementById('vol-dec');
+  const btnInc = document.getElementById('vol-inc');
+
+  const wristTrail = [];
+  const centroidHist = [];
+  let lastPhrase = null, lastTime = 0;
+  let smootherBuf = [];
+  let currentVolume = 1.0; // 0..1
+  const eventLog = []; // {ts,label,phrase}
+
+  function banner(t){ bannerEl.textContent = t }
+  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)) }
+  function applyVolumeUI(){ volVal.textContent = Math.round(currentVolume*100)+"%"; volSlider.value = String(currentVolume); }
+
+  function speakVI(text){
+    if(!audioToggle.checked) return;
+    try{
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'vi-VN'; u.volume = currentVolume;
+      window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
+    }catch(e){ console.warn("SpeechSynthesis:", e); }
+  }
+
+  // ---------- Geometry/Heuristic ----------
+  function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y) }
+  function palmRef(lm){ return dist(lm[0], lm[9]) + 1e-6 }
+  function fingersUp(lm, handed){
+    const thumb_tip = lm[4], thumb_ip = lm[3];
+    const idx_tip = lm[8], idx_pip = lm[6];
+    const mid_tip = lm[12], mid_pip = lm[10];
+    const ring_tip = lm[16], ring_pip = lm[14];
+    const pky_tip = lm[20], pky_pip = lm[18];
+    const idx_up = idx_tip.y < idx_pip.y;
+    const mid_up = mid_tip.y < mid_pip.y;
+    const ring_up = ring_tip.y < ring_pip.y;
+    const pky_up = pky_tip.y < pky_pip.y;
+    let thumb_up;
+    if (handed === "Right") thumb_up = thumb_tip.x < thumb_ip.x;
+    else if (handed === "Left") thumb_up = thumb_tip.x > thumb_ip.x;
+    else thumb_up = thumb_tip.y < lm[2].y;
+    return [thumb_up, idx_up, mid_up, ring_up, pky_up];
+  }
+  function isOK(lm){ return dist(lm[4], lm[8]) / palmRef(lm) < OK_RATIO_MAX }
+  function isVictory(up,lm){ return (up[1] && up[2] && !up[3] && !up[4]) && (dist(lm[8], lm[12]) / palmRef(lm) > V_SEP_MIN) }
+  function isOpenPalm(up){ return up.filter(Boolean).length >= 4 }
+  function isThumbsUp(up,lm){ return up[0] && (up.slice(1).filter(Boolean).length <= 1) && (lm[4].y < lm[0].y) }
+  function isFist(up){ return up.filter(Boolean).length === 0 }
+  function isPoint(up){ return up[1] && !up[0] && !up[2] && !up[3] && !up[4] }
+  function isShaka(up){ return up[0] && up[4] && !up[1] && !up[2] && !up[3] }
+
+  function updateMotion(lm, W, H){
+    const cx = lm.reduce((a,p)=>a+p.x,0)/lm.length; // centroid x
+    centroidHist.push(cx); if (centroidHist.length > WAVE_HIST) centroidHist.shift();
+    const wx = Math.round(lm[0].x * W), wy = Math.round(lm[0].y * H);
+    wristTrail.push([wx,wy]); if (wristTrail.length > WAVE_HIST) wristTrail.shift();
+  }
+  function waveAmplitude(arr){
+    if(arr.length<2) return 0;
+    const max = Math.max(...arr), min = Math.min(...arr);
+    return max-min;
+  }
+  function isWaving(){
+    if (centroidHist.length < 8) return false;
+    const diffs = [];
+    for (let i=1;i<centroidHist.length;i++) diffs.push(centroidHist[i]-centroidHist[i-1]);
+    for (let i=0;i<diffs.length;i++) if (Math.abs(diffs[i]) < 0.004) diffs[i] = 0;
+    let changes = 0;
+    for (let i=1;i<diffs.length;i++) if (Math.sign(diffs[i]) !== Math.sign(diffs[i-1])) changes++;
+    const amp = waveAmplitude(centroidHist);
+    return amp >= WAVE_AMP_MIN && changes >= WAVE_SIGN_CHANGES_MIN;
+  }
+  function isStableOpenPalm(){ return waveAmplitude(centroidHist) < STOP_STABLE_AMP }
+
+  function classify(lm, handed){
+    if (isOK(lm)) return "OK";
+    const up = fingersUp(lm, handed);
+    if (isOpenPalm(up) && isWaving()) return "WAVE";
+    if (isOpenPalm(up) && isStableOpenPalm()) return "STOP";
+    if (isThumbsUp(up,lm)) return "THUMBS_UP";
+    if (isOpenPalm(up)) return "OPEN_PALM";
+    if (isVictory(up,lm)) return "VICTORY";
+    if (isFist(up)) return "FIST";
+    if (isPoint(up)) return "POINT";
+    if (isShaka(up)) return "SHAKA";
+    return null;
+  }
+
+  // ---------- MediaPipe callback ----------
+  function onResults(results){
+    const img = results.image;
+    const W = canvasEl.width = img.width;
+    const H = canvasEl.height = img.height;
+    ctx.save();
+    ctx.clearRect(0,0,W,H);
+    ctx.drawImage(img,0,0,W,H);
+
+    let phraseToSay = null, lastLabel = null;
+
+    if (results.multiHandLandmarks && results.multiHandLandmarks.length){
+      for (let i=0;i<results.multiHandLandmarks.length;i++){
+        const lm = results.multiHandLandmarks[i];
+        const handed = (results.multiHandedness && results.multiHandedness[i] && results.multiHandedness[i].label) || "Unknown";
+        drawConnectors(ctx, lm, HAND_CONNECTIONS, {color:'#00FF88', lineWidth:3});
+        drawLandmarks(ctx, lm, {color:'#FFFFFF', lineWidth:1});
+        updateMotion(lm, W, H);
+        const label = classify(lm, handed);
+        // smoother
+        smootherBuf.push(label); if (smootherBuf.length > SMOOTHER_K) smootherBuf.shift();
+        let stable = null;
+        if(label){
+          const cnt = smootherBuf.filter(x=>x===label).length;
+          if (cnt >= SMOOTHER_REQUIRED) stable = label;
+        }
+        if (stable){
+          const phrase = PHRASE_MAP[stable];
+          const now = performance.now()/1000;
+          if (phrase !== lastPhrase || (now - lastTime) > COOLDOWN_SEC){
+            phraseToSay = phrase; lastPhrase = phrase; lastTime = now; lastLabel = stable;
+          }
+        }
+      }
+    }
+
+    // trail
+    if (wristTrail.length>=2){
+      ctx.beginPath();
+      for (let i=0;i<wristTrail.length-1;i++){ const [x1,y1]=wristTrail[i], [x2,y2]=wristTrail[i+1]; ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); }
+      ctx.strokeStyle = '#00FF00'; ctx.lineWidth = 2; ctx.stroke();
+    }
+
+    ctx.restore();
+
+    if (phraseToSay){
+      banner(phraseToSay);
+      speakVI(phraseToSay);
+      eventLog.push({ts:new Date().toISOString(), label:lastLabel||"", phrase:phraseToSay});
+    }
+  }
+
+  // ---------- Init camera + hands ----------
+  async function init(){
+    banner("Đang bật camera…");
+    const hands = new Hands({ locateFile: (f)=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+    hands.setOptions({ maxNumHands:1, modelComplexity:1, minDetectionConfidence:0.7, minTrackingConfidence:0.5 });
+    hands.onResults(onResults);
+    const cam = new Camera(videoEl, { onFrame: async()=>{ await hands.send({image: videoEl}); }, width:960, height:540 });
+    await cam.start();
+    banner("Sẵn sàng — giơ tay để thử 👋");
+  }
+
+  // ---------- UI events ----------
+  btnReset.onclick = ()=>{ centroidHist.length = 0; banner("Đã reset chuyển động"); };
+  btnTest.onclick = ()=>{ speakVI("Xin chào! Đây là bản kiểm tra âm thanh."); };
+  btnDownload.onclick = ()=>{
+    if(eventLog.length===0){ banner("Chưa có dữ liệu để tải"); return; }
+    const rows = [["timestamp","label","phrase"], ...eventLog.map(r=>[r.ts,r.label,r.phrase])];
+    const csv = rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+    const a = document.createElement('a'); a.href = url; a.download = "handspeak_log.csv"; a.click(); URL.revokeObjectURL(url);
+  };
+  function onVolInput(v){ currentVolume = clamp(parseFloat(v||"1"),0,1); applyVolumeUI(); }
+  volSlider.addEventListener('input', e=> onVolInput(e.target.value));
+  btnDec.addEventListener('click', ()=> onVolInput((currentVolume-0.1).toFixed(2)));
+  btnInc.addEventListener('click', ()=> onVolInput((currentVolume+0.1).toFixed(2)));
+
+  // ---------- Start ----------
+  window.addEventListener('DOMContentLoaded', ()=>{
+    applyVolumeUI();
+    init().catch(err=>{ console.error(err); banner("Không mở được camera. Hãy chạy trên https/localhost và cấp quyền."); });
+  });
+</script>
+</body>
+</html>
